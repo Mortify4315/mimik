@@ -1,4 +1,5 @@
 import { defineExtensionMessaging } from '@webext-core/messaging';
+import type { AIAPIFormat } from '@/core/capture/ai/models';
 import type { DOMContext } from '@/core/capture/dom/context';
 import type { CaptureStateValue } from '@/core/capture/machine';
 import type { ElementMeta } from '@/core/guides/types';
@@ -110,6 +111,8 @@ export interface RewriteSelectionResponse {
 export interface ValidateApiKeyData {
   provider: string;
   apiKey: string;
+  baseURL?: string;
+  apiFormat?: AIAPIFormat;
 }
 
 export interface ValidateApiKeyResponse {
