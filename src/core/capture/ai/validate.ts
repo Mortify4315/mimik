@@ -1,3 +1,5 @@
+import type { AIAPIFormat } from './models';
+import { normalizeBaseURL } from './provider';
 import { logger } from '@/lib/logger';
 
 export type KeyValidation = { valid: true } | { valid: false; reason: 'rejected' | 'network' };
@@ -23,15 +25,46 @@ const ENDPOINTS: Record<string, { url: string; headers: (key: string) => Record<
   },
 };
 
-export async function validateApiKey(provider: string, apiKey: string): Promise<KeyValidation> {
-  const endpoint = ENDPOINTS[provider];
+function customEndpoint(
+  apiKey: string,
+  baseURL?: string,
+  apiFormat?: AIAPIFormat,
+): { url: string; headers: Record<string, string> } | null {
+  const normalized = normalizeBaseURL(baseURL);
+  if (!normalized) return null;
+
+  if (apiFormat === 'anthropic-messages') {
+    return {
+      url: `${normalized}/models`,
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+    };
+  }
+
+  return {
+    url: `${normalized}/models`,
+    headers: { Authorization: `Bearer ${apiKey}` },
+  };
+}
+
+export async function validateApiKey(
+  provider: string,
+  apiKey: string,
+  baseURL?: string,
+  apiFormat?: AIAPIFormat,
+): Promise<KeyValidation> {
+  const custom = provider === 'custom' ? customEndpoint(apiKey, baseURL, apiFormat) : null;
+  const endpoint = provider === 'custom' ? custom : ENDPOINTS[provider];
   if (!endpoint) {
     logger.error('No API key validation endpoint for provider', provider);
     return { valid: false, reason: 'network' };
   }
   try {
     const res = await fetch(endpoint.url, {
-      headers: endpoint.headers(apiKey),
+      headers: 'headers' in endpoint ? endpoint.headers : endpoint.headers(apiKey),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (res.ok) return { valid: true };
