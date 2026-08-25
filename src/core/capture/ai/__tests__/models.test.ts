@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { AI_PROVIDERS, CUSTOM_MODEL_VALUE, isCustomModel } from '../models';
+import {
+  AI_PROVIDERS,
+  CUSTOM_MODEL_VALUE,
+  DEFAULT_CUSTOM_API_FORMAT,
+  DEFAULT_CUSTOM_BASE_URL,
+  isCustomModel,
+} from '../models';
 
 const LOCALES = ['en', 'de', 'es', 'fr', 'pt-BR'];
 
@@ -74,5 +80,14 @@ describe('custom endpoint presets', () => {
     expect(source).toContain('OpenCode Go (chat)');
     expect(source).toContain('OpenCode Go (responses)');
     expect(source).toContain('OpenCode Go (Anthropic)');
+  });
+});
+
+describe('OpenCode Go provider defaults', () => {
+  it('keeps the storage key custom while presenting OpenCode Go', () => {
+    expect(AI_PROVIDERS.custom.label).toBe('OpenCode Go');
+    expect(DEFAULT_CUSTOM_BASE_URL).toBe('https://opencode.ai/zen/go/v1');
+    expect(DEFAULT_CUSTOM_API_FORMAT).toBe('openai-chat');
+    expect(AI_PROVIDERS.custom.models.some((model) => model.id === 'gpt-4o-mini')).toBe(false);
   });
 });

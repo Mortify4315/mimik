@@ -2,7 +2,8 @@ import { Mic, MousePointerClick, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { browser, i18n } from '#imports';
 import { PRESET_LABELS, type PresetKey } from '@/core/blur/regexes';
-import { AI_PROVIDERS, type AIProviderKey } from '@/core/capture/ai/models';
+import { fetchModelCatalog } from '@/core/capture/ai/model-catalog';
+import { AI_PROVIDERS, type AIProviderKey, DEFAULT_CUSTOM_BASE_URL } from '@/core/capture/ai/models';
 import { AI_LANGUAGES, type AILanguageCode } from '@/core/capture/ai/prompts';
 import type { VoiceProvider } from '@/core/capture/voice/transcribe';
 import { localStorage, openSidebar, requestHostPermissions } from '@/lib/browser-api';
@@ -119,15 +120,18 @@ function AISetupStep({ onNext, onSkip, onBack, index, total }: StepProps) {
   const [model, setModel] = useState(AI_PROVIDERS.openai.defaultModel);
   const [apiKey, setApiKey] = useState('');
   const [aiLanguage, setAiLanguage] = useState<AILanguageCode>('en');
+  const [customModels, setCustomModels] = useState(AI_PROVIDERS.custom.models);
+  const [customBaseURL, setCustomBaseURL] = useState(DEFAULT_CUSTOM_BASE_URL);
 
   useEffect(() => {
     const load = () =>
-      localStorage.get(['aiProvider', 'aiModel', 'aiApiKey', 'aiLanguage']).then((stored) => {
+      localStorage.get(['aiProvider', 'aiModel', 'aiApiKey', 'aiLanguage', 'aiBaseURL']).then((stored) => {
         if (typeof stored.aiProvider === 'string' && stored.aiProvider in AI_PROVIDERS) {
           setProvider(stored.aiProvider as AIProviderKey);
         }
         if (typeof stored.aiModel === 'string') setModel(stored.aiModel);
         if (typeof stored.aiApiKey === 'string') setApiKey(stored.aiApiKey);
+        if (typeof stored.aiBaseURL === 'string' && stored.aiBaseURL.trim()) setCustomBaseURL(stored.aiBaseURL);
         if (typeof stored.aiLanguage === 'string') setAiLanguage(stored.aiLanguage as AILanguageCode);
       });
 
@@ -139,13 +143,28 @@ function AISetupStep({ onNext, onSkip, onBack, index, total }: StepProps) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
+  useEffect(() => {
+    if (provider !== 'custom') return;
+    const timer = window.setTimeout(() => {
+      void fetchModelCatalog(customBaseURL, apiKey)
+        .then((models) => setCustomModels(models.length ? models : AI_PROVIDERS.custom.models))
+        .catch(() => setCustomModels(AI_PROVIDERS.custom.models));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [provider, customBaseURL, apiKey]);
+
   const providerConfig = AI_PROVIDERS[provider];
 
   const handleProviderChange = (newProvider: AIProviderKey) => {
     const nextModel = AI_PROVIDERS[newProvider].defaultModel;
     setProvider(newProvider);
     setModel(nextModel);
-    void localStorage.set({ aiProvider: newProvider, aiModel: nextModel });
+    if (newProvider === 'custom') setCustomBaseURL(DEFAULT_CUSTOM_BASE_URL);
+    void localStorage.set({
+      aiProvider: newProvider,
+      aiModel: nextModel,
+      ...(newProvider === 'custom' ? { aiBaseURL: DEFAULT_CUSTOM_BASE_URL, aiApiFormat: 'openai-chat' } : {}),
+    });
   };
 
   const handleModelChange = (nextModel: string) => {
@@ -199,7 +218,7 @@ function AISetupStep({ onNext, onSkip, onBack, index, total }: StepProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {providerConfig.models.map((m) => (
+                  {(provider === 'custom' ? customModels : providerConfig.models).map((m) => (
                     <SelectItem key={m.id} value={m.id}>
                       {m.label}
                     </SelectItem>

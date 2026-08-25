@@ -72,7 +72,10 @@ describe('validateApiKey', () => {
   });
 
   it('validates a custom OpenAI-chat key with an authenticated minimal inference request', async () => {
-    fetchMock.mockResolvedValue({ ok: true, status: 200 });
+    fetchMock.mockImplementation(async (_url, init) => {
+      const body = JSON.parse(init.body);
+      return body.max_tokens === 8 ? { ok: true, status: 200 } : { ok: false, status: 400 };
+    });
 
     expect(
       await validateApiKey('custom', 'oc-good', 'https://opencode.ai/zen/go/v1', 'openai-chat', 'kimi-k2.5'),
@@ -85,7 +88,7 @@ describe('validateApiKey', () => {
     expect(JSON.parse(init.body)).toEqual({
       model: 'kimi-k2.5',
       messages: [{ role: 'user', content: 'Reply with OK.' }],
-      max_tokens: 1,
+      max_tokens: 8,
     });
   });
 

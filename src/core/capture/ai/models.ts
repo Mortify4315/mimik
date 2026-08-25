@@ -18,6 +18,8 @@ export const AI_API_FORMATS: { id: AIAPIFormat; label: string }[] = [
 ];
 
 export const DEFAULT_CUSTOM_API_FORMAT: AIAPIFormat = 'openai-chat';
+export const DEFAULT_CUSTOM_BASE_URL = 'https://opencode.ai/zen/go/v1';
+export const DEFAULT_CUSTOM_MODEL = 'kimi-k2.5';
 
 export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
   openai: {
@@ -40,9 +42,10 @@ export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
     ],
   },
   custom: {
-    label: 'Custom Endpoint',
-    defaultModel: 'gpt-4o-mini',
-    models: [{ id: 'gpt-4o-mini', label: 'gpt-4o-mini (example)' }],
+    label: 'OpenCode Go',
+    defaultModel: DEFAULT_CUSTOM_MODEL,
+    // Used only while the live catalog is unavailable. Custom model input remains available.
+    models: [{ id: DEFAULT_CUSTOM_MODEL, label: DEFAULT_CUSTOM_MODEL }],
   },
 };
 

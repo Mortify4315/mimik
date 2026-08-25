@@ -16,9 +16,16 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { i18n } from '#imports';
+import { browser, i18n } from '#imports';
 import { PRESET_LABELS, type PresetKey } from '@/core/blur/regexes';
-import { AI_PROVIDERS, type AIProviderKey, CUSTOM_MODEL_VALUE, isCustomModel } from '@/core/capture/ai/models';
+import { fetchModelCatalog } from '@/core/capture/ai/model-catalog';
+import {
+  AI_PROVIDERS,
+  type AIProviderKey,
+  CUSTOM_MODEL_VALUE,
+  DEFAULT_CUSTOM_BASE_URL,
+  isCustomModel,
+} from '@/core/capture/ai/models';
 import { AI_LANGUAGES, type AILanguageCode } from '@/core/capture/ai/prompts';
 import { resolveVoiceApiKey } from '@/core/capture/voice/api-key';
 import type { VoiceProvider } from '@/core/capture/voice/transcribe';
@@ -51,12 +58,11 @@ function useKeyCheck() {
   const check = useCallback(async (provider: string, apiKey: string, model?: string) => {
     const customSettings =
       provider === 'custom' ? await localStorage.get(['aiBaseURL', 'aiApiFormat', 'aiModel']) : undefined;
-    const baseURL = customSettings?.aiBaseURL as string | undefined;
+    const baseURL =
+      (customSettings?.aiBaseURL as string | undefined) ||
+      (provider === 'custom' ? DEFAULT_CUSTOM_BASE_URL : undefined);
     const apiFormat = customSettings?.aiApiFormat as import('@/core/capture/ai/models').AIAPIFormat | undefined;
-    const selectedModel =
-      provider === 'custom'
-        ? ((customSettings?.aiModel as string | undefined) || model)
-        : model;
+    const selectedModel = provider === 'custom' ? (customSettings?.aiModel as string | undefined) || model : model;
     const fingerprint = `${provider}:${apiKey}:${baseURL || ''}:${apiFormat || ''}:${selectedModel || ''}`;
     if (validated.current === fingerprint) {
       setStatus('valid');
@@ -116,6 +122,8 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
   const aiKeyCheck = useKeyCheck();
   const voiceKeyCheck = useKeyCheck();
   const [customModel, setCustomModel] = useState(false);
+  const [customModels, setCustomModels] = useState(AI_PROVIDERS.custom.models);
+  const [customBaseURL, setCustomBaseURL] = useState<string | undefined>();
   const [loaded, setLoaded] = useState(false);
   const savedSnapshot = useRef<SettingsSnapshot | null>(null);
   const pending = useRef<SettingsSnapshot>({});
@@ -144,6 +152,7 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
         'aiApiKey',
         'aiProvider',
         'aiModel',
+        'aiBaseURL',
         'aiLanguage',
         'blurPresets',
         'voiceProvider',
@@ -158,6 +167,7 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
         const p = (result.aiProvider as AIProviderKey) || 'openai';
         setProvider(p);
         setModel((result.aiModel as string) || AI_PROVIDERS[p].defaultModel);
+        if (typeof result.aiBaseURL === 'string') setCustomBaseURL(result.aiBaseURL);
         if (result.aiApiKey) setApiKey(result.aiApiKey as string);
         if (result.aiLanguage) setAiLanguage(result.aiLanguage as AILanguageCode);
         if (result.blurPresets) setBlurPresets(result.blurPresets as Record<PresetKey, boolean>);
@@ -171,6 +181,34 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
         setLoaded(true);
       });
   }, []);
+
+  const refreshCustomModels = useCallback(async (baseURL?: string, key?: string) => {
+    try {
+      const catalog = await fetchModelCatalog(baseURL || DEFAULT_CUSTOM_BASE_URL, key);
+      if (catalog.length > 0) setCustomModels(catalog);
+      else setCustomModels(AI_PROVIDERS.custom.models);
+    } catch {
+      setCustomModels(AI_PROVIDERS.custom.models);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (provider !== 'custom') return;
+    void refreshCustomModels(customBaseURL, apiKey);
+  }, [provider, customBaseURL, apiKey, refreshCustomModels]);
+
+  useEffect(() => {
+    const handleStorageChange = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+      if (areaName !== 'local' || (!changes.aiBaseURL && !changes.aiApiKey)) return;
+      if (changes.aiBaseURL) setCustomBaseURL(changes.aiBaseURL.newValue as string | undefined);
+      void refreshCustomModels(
+        changes.aiBaseURL ? (changes.aiBaseURL.newValue as string | undefined) : customBaseURL,
+        changes.aiApiKey ? (changes.aiApiKey.newValue as string | undefined) : apiKey,
+      );
+    };
+    browser.storage.onChanged.addListener(handleStorageChange);
+    return () => browser.storage.onChanged.removeListener(handleStorageChange);
+  }, [apiKey, customBaseURL, refreshCustomModels]);
 
   const stored = {
     aiApiKey: apiKey,
@@ -241,6 +279,10 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
     aiKeyCheck.setStatus(null);
     setCustomModel(false);
     setModel(AI_PROVIDERS[newProvider].defaultModel);
+    if (newProvider === 'custom' && !customBaseURL) {
+      setCustomBaseURL(DEFAULT_CUSTOM_BASE_URL);
+      void localStorage.set({ aiBaseURL: DEFAULT_CUSTOM_BASE_URL, aiApiFormat: 'openai-chat' });
+    }
   };
 
   const handleModelChange = (value: string) => {
@@ -253,7 +295,8 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
     setModel(value);
   };
 
-  const providerConfig = AI_PROVIDERS[provider];
+  const providerConfig =
+    provider === 'custom' ? { ...AI_PROVIDERS.custom, models: customModels } : AI_PROVIDERS[provider];
   const usingCustomModel = customModel || isCustomModel(model, providerConfig);
   const voiceKey = resolveVoiceApiKey({ voiceProvider, voiceApiKey, aiProvider: provider, aiApiKey: apiKey });
 

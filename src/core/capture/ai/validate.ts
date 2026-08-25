@@ -74,7 +74,7 @@ function customRequest(
     body: JSON.stringify(
       responses
         ? { model: selectedModel, input: 'Reply with OK.', max_output_tokens: 1 }
-        : { model: selectedModel, messages: [{ role: 'user', content: 'Reply with OK.' }], max_tokens: 1 },
+        : { model: selectedModel, messages: [{ role: 'user', content: 'Reply with OK.' }], max_tokens: 8 },
     ),
   };
 }

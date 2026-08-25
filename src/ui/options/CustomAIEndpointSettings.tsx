@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   AI_API_FORMATS,
-  DEFAULT_CUSTOM_API_FORMAT,
   type AIAPIFormat,
+  DEFAULT_CUSTOM_API_FORMAT,
+  DEFAULT_CUSTOM_BASE_URL,
 } from '@/core/capture/ai/models';
 import { localStorage } from '@/lib/browser-api';
 import { Input } from '@/ui/components/ui/input';
@@ -31,8 +32,8 @@ export default function CustomAIEndpointSettings() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    localStorage.get(['aiBaseURL', 'aiApiFormat', 'aiModel', 'aiApiKey']).then((settings) => {
-      if (settings.aiBaseURL) setBaseURL(settings.aiBaseURL as string);
+    localStorage.get(['aiBaseURL', 'aiApiFormat', 'aiModel', 'aiApiKey', 'aiProvider']).then((settings) => {
+      setBaseURL((settings.aiBaseURL as string) || (settings.aiProvider === 'custom' ? DEFAULT_CUSTOM_BASE_URL : ''));
       if (settings.aiApiFormat) setApiFormat(settings.aiApiFormat as AIAPIFormat);
       if (settings.aiModel) setModel(settings.aiModel as string);
       if (settings.aiApiKey) setApiKey(settings.aiApiKey as string);
@@ -63,14 +64,12 @@ export default function CustomAIEndpointSettings() {
     <div className="border-t border-border px-3 py-4 space-y-3 bg-card">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-xs font-bold text-foreground">Custom AI endpoint</div>
+          <div className="text-xs font-bold text-foreground">OpenCode Go / compatible endpoint</div>
           <p className="text-[10px] text-muted-foreground mt-0.5">
             Configure an OpenAI- or Anthropic-compatible BYOK endpoint.
           </p>
         </div>
-        <span
-          className={`text-[10px] text-muted-foreground transition-opacity ${saved ? 'opacity-100' : 'opacity-0'}`}
-        >
+        <span className={`text-[10px] text-muted-foreground transition-opacity ${saved ? 'opacity-100' : 'opacity-0'}`}>
           Saved
         </span>
       </div>
@@ -139,8 +138,9 @@ export default function CustomAIEndpointSettings() {
       </div>
 
       <p className="text-[10px] text-muted-foreground leading-relaxed">
-        Saving this panel switches AI descriptions to Custom Endpoint. Most routers use Chat Completions; OpenCode Go
-        also exposes Responses and Anthropic Messages depending on the model.
+        Saving this panel switches AI descriptions to OpenCode Go. Generic OpenAI- and Anthropic-compatible endpoints
+        are also supported. Most routers use Chat Completions; OpenCode Go also exposes Responses and Anthropic Messages
+        depending on the model.
       </p>
     </div>
   );
