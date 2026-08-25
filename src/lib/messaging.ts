@@ -111,6 +111,7 @@ export interface RewriteSelectionResponse {
 export interface ValidateApiKeyData {
   provider: string;
   apiKey: string;
+  model?: string;
   baseURL?: string;
   apiFormat?: AIAPIFormat;
 }

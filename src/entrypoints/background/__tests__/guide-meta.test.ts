@@ -101,6 +101,7 @@ describe('background guide-meta', () => {
         'anthropic',
         AI_PROVIDERS.anthropic.defaultModel,
         'key',
+        { baseURL: undefined, apiFormat: 'openai-chat' },
       );
     });
 
@@ -114,11 +115,32 @@ describe('background guide-meta', () => {
         'openai',
         AI_PROVIDERS.openai.defaultModel,
         'key',
+        { baseURL: undefined, apiFormat: 'openai-chat' },
       );
     });
   });
 
   describe('generateGuideMetaOnStop', () => {
+    it('passes custom endpoint connection settings through to guide meta generation', async () => {
+      localStorageGetMock.mockResolvedValue({
+        aiApiKey: 'key',
+        aiProvider: 'custom',
+        aiModel: 'model-a',
+        aiBaseURL: 'https://provider.test/v1',
+        aiApiFormat: 'openai-responses',
+      });
+
+      await generateGuideMetaOnStop(GUIDE_ID);
+
+      expect(generateGuideMetaMock).toHaveBeenCalledWith(
+        expect.anything(),
+        'custom',
+        'model-a',
+        'key',
+        { baseURL: 'https://provider.test/v1', apiFormat: 'openai-responses' },
+      );
+    });
+
     it('applies the domain fallback title without calling the model when no key is set', async () => {
       localStorageGetMock.mockResolvedValue({});
 

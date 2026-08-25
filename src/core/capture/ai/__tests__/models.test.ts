@@ -65,3 +65,14 @@ describe('model picker copy', () => {
     for (const key of MODEL_KEYS) expect(keys).toContain(key);
   });
 });
+
+describe('custom endpoint presets', () => {
+  it('does not expose 9Router and retains all OpenCode Go formats', () => {
+    const source = readFileSync(join(process.cwd(), 'src/ui/options/CustomAIEndpointSettings.tsx'), 'utf8');
+
+    expect(source).not.toContain('9Router');
+    expect(source).toContain('OpenCode Go (chat)');
+    expect(source).toContain('OpenCode Go (responses)');
+    expect(source).toContain('OpenCode Go (Anthropic)');
+  });
+});

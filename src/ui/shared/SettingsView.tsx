@@ -48,14 +48,28 @@ function useKeyCheck() {
   const [status, setStatus] = useState<KeyStatus>(null);
   const validated = useRef('');
 
-  const check = useCallback(async (provider: string, apiKey: string) => {
-    const fingerprint = `${provider}:${apiKey}`;
+  const check = useCallback(async (provider: string, apiKey: string, model?: string) => {
+    const customSettings =
+      provider === 'custom' ? await localStorage.get(['aiBaseURL', 'aiApiFormat', 'aiModel']) : undefined;
+    const baseURL = customSettings?.aiBaseURL as string | undefined;
+    const apiFormat = customSettings?.aiApiFormat as import('@/core/capture/ai/models').AIAPIFormat | undefined;
+    const selectedModel =
+      provider === 'custom'
+        ? ((customSettings?.aiModel as string | undefined) || model)
+        : model;
+    const fingerprint = `${provider}:${apiKey}:${baseURL || ''}:${apiFormat || ''}:${selectedModel || ''}`;
     if (validated.current === fingerprint) {
       setStatus('valid');
       return;
     }
     setStatus('checking');
-    const result = await sendMessage('validateApiKey', { provider, apiKey }).catch(() => null);
+    const result = await sendMessage('validateApiKey', {
+      provider,
+      apiKey,
+      model: selectedModel,
+      baseURL,
+      apiFormat,
+    }).catch(() => null);
     if (result?.valid) validated.current = fingerprint;
     setStatus(result?.valid ? 'valid' : result?.reason === 'rejected' ? 'rejected' : 'unreachable');
   }, []);
@@ -346,7 +360,7 @@ export default function SettingsView({ onBack }: SettingsViewProps) {
                 variant="outline"
                 size="sm"
                 disabled={!apiKey || aiKeyCheck.status === 'checking'}
-                onClick={() => void aiKeyCheck.check(provider, apiKey)}
+                onClick={() => void aiKeyCheck.check(provider, apiKey, model)}
                 className="h-8 shrink-0 rounded-lg bg-card text-[11px] font-semibold"
               >
                 {i18n.t('settings.checkKey')}

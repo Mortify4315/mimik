@@ -9,8 +9,6 @@ import { Input } from '@/ui/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/components/ui/select';
 
 const PRESETS = [
-  { label: '9Router (local)', baseURL: 'http://localhost:20128/v1', apiFormat: 'openai-chat' as AIAPIFormat },
-  { label: '9Router (cloud)', baseURL: 'https://9router.com/v1', apiFormat: 'openai-chat' as AIAPIFormat },
   { label: 'OpenCode Go (chat)', baseURL: 'https://opencode.ai/zen/go/v1', apiFormat: 'openai-chat' as AIAPIFormat },
   {
     label: 'OpenCode Go (responses)',
