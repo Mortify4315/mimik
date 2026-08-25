@@ -1,4 +1,5 @@
 import SettingsView from '@/ui/shared/SettingsView';
+import CustomAIEndpointSettings from './CustomAIEndpointSettings';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         }}
       >
         <SettingsView />
+        <CustomAIEndpointSettings />
       </div>
     </div>
   );
