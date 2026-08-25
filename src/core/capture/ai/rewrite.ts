@@ -2,7 +2,7 @@ import { generateText } from 'ai';
 import { localStorage } from '@/lib/browser-api';
 import { logger } from '@/lib/logger';
 import type { RewriteSelectionResponse } from '@/lib/messaging';
-import { AI_PROVIDERS } from './models';
+import { AI_PROVIDERS, DEFAULT_CUSTOM_API_FORMAT, type AIAPIFormat } from './models';
 import { getLanguageSuffix, REWRITE_PROMPT } from './prompts';
 import { createModel } from './provider';
 
@@ -22,7 +22,14 @@ export function buildRewritePrompt(text: string, instruction: string, locale: st
 }
 
 export async function rewriteSelection(text: string, instruction: string): Promise<RewriteSelectionResponse> {
-  const settings = await localStorage.get(['aiApiKey', 'aiProvider', 'aiModel', 'aiLanguage']);
+  const settings = await localStorage.get([
+    'aiApiKey',
+    'aiProvider',
+    'aiModel',
+    'aiLanguage',
+    'aiBaseURL',
+    'aiApiFormat',
+  ]);
   if (!settings.aiApiKey) return { error: 'no-api-key' };
 
   const provider = (settings.aiProvider as string) || 'openai';
@@ -33,6 +40,10 @@ export async function rewriteSelection(text: string, instruction: string): Promi
         provider,
         (settings.aiModel as string) || AI_PROVIDERS[provider].defaultModel,
         settings.aiApiKey as string,
+        {
+          baseURL: settings.aiBaseURL as string | undefined,
+          apiFormat: ((settings.aiApiFormat as AIAPIFormat) || DEFAULT_CUSTOM_API_FORMAT),
+        },
       ),
       prompt: buildRewritePrompt(text, instruction, (settings.aiLanguage as string) || 'en'),
       maxOutputTokens: 400,
