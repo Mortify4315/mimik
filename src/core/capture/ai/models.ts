@@ -9,6 +9,16 @@ export interface AIProviderConfig {
   models: AIModelOption[];
 }
 
+export type AIAPIFormat = 'openai-responses' | 'openai-chat' | 'anthropic-messages';
+
+export const AI_API_FORMATS: { id: AIAPIFormat; label: string }[] = [
+  { id: 'openai-chat', label: 'OpenAI Chat Completions' },
+  { id: 'openai-responses', label: 'OpenAI Responses' },
+  { id: 'anthropic-messages', label: 'Anthropic Messages' },
+];
+
+export const DEFAULT_CUSTOM_API_FORMAT: AIAPIFormat = 'openai-chat';
+
 export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
   openai: {
     label: 'OpenAI',
@@ -28,6 +38,11 @@ export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
       { id: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
       { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
     ],
+  },
+  custom: {
+    label: 'Custom Endpoint',
+    defaultModel: 'gpt-4o-mini',
+    models: [{ id: 'gpt-4o-mini', label: 'gpt-4o-mini (example)' }],
   },
 };
 

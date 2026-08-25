@@ -57,15 +57,6 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(async (details) => {
     if (details.reason !== 'install') return;
     if (import.meta.env.BROWSER === 'firefox') {
-      // Firefox MV3 bug 1758306: the <all_urls> grant lands in the origin
-      // store but is missed by _setupStartupPermissions when populating the
-      // API-permission resolution table that captureVisibleTab consults.
-      // Result: permissions.contains() returns true but captureVisibleTab
-      // silently rejects. Removing the permission here forces a clean state
-      // so the user-gesture permissions.request() in onboarding's "Get
-      // Started" / sidepanel's "Start Recording" goes through the working
-      // re-grant code path. Remove this when Mozilla ships:
-      // https://bugzilla.mozilla.org/show_bug.cgi?id=1758306
       try {
         await browser.permissions.remove({ origins: ['<all_urls>'] });
       } catch (err) {
@@ -124,14 +115,10 @@ export default defineBackground(() => {
       insertAtIndex: data.insertAtIndex,
     });
     const guideId = actor.getSnapshot().context.currentGuideId!;
-
     await createGuide(guideId, data.insertTargetGuideId !== undefined);
-
     const activeTab = await getActiveTab();
     if (activeTab?.id) await showNotificationOnTab(activeTab.id);
-
     await startVoiceNarration(activeTab?.id);
-
     await broadcastStartCapture(guideId);
     return { guideId };
   });
@@ -142,18 +129,14 @@ export default defineBackground(() => {
     const { currentGuideId: guideId, insertTargetGuideId, insertAtIndex } = actor.getSnapshot().context;
     await broadcastStopCapture();
     actor.send({ type: 'STOP_RECORDING' });
-
     if (guideId) void stopVoiceNarration(guideId);
-
     if (guideId && insertTargetGuideId !== null && insertAtIndex !== null) {
       await settlePendingDescriptions(guideId);
       await createSnapshot(insertTargetGuideId);
       await mergeGuideInto(guideId, insertTargetGuideId, insertAtIndex);
       return { success: true, guideId: insertTargetGuideId, inserted: true };
     }
-
     if (guideId) generateGuideMetaOnStop(guideId).catch(() => {});
-
     return { success: true, guideId: guideId ?? undefined, inserted: false };
   });
 
@@ -163,9 +146,7 @@ export default defineBackground(() => {
     await waitUntilReady();
     await broadcastStopCapture();
     const activeTab = await getActiveTab();
-    if (activeTab?.id) {
-      sendMessageToTab(activeTab.id, { type: 'START_BLUR' }).catch(() => {});
-    }
+    if (activeTab?.id) sendMessageToTab(activeTab.id, { type: 'START_BLUR' }).catch(() => {});
     return { entered: true };
   });
 
@@ -174,16 +155,14 @@ export default defineBackground(() => {
     await localStorage.set({ mimikBlurMode: false });
     const actor = getActor();
     const guideId = actor.getSnapshot().context.currentGuideId;
-    if (guideId) {
-      await broadcastStartCapture(guideId);
-    }
+    if (guideId) await broadcastStartCapture(guideId);
     return { exited: true };
   });
 
   onMessage('generateGuideDescription', ({ data }) => generateDescriptionOnDemand(data.guideId));
-
-  onMessage('validateApiKey', ({ data }) => validateApiKey(data.provider, data.apiKey));
-
+  onMessage('validateApiKey', ({ data }) =>
+    validateApiKey(data.provider, data.apiKey, data.baseURL, data.apiFormat),
+  );
   onMessage('rewriteSelection', ({ data }) => rewriteSelection(data.text, data.instruction));
 
   onMessage('captureStep', async ({ data }) => {
@@ -206,17 +185,11 @@ export default defineBackground(() => {
   onMessage('startGuideMe', async ({ data }) => {
     const steps = actionSteps(await getStepsForGuide(data.guideId));
     if (steps.length === 0) return { started: false, error: 'No steps' };
-
     const firstStep = steps.find((s) => s.elementMeta) ?? steps[0];
     if (!steps.some((s) => s.elementMeta)) return { started: false, error: 'Guide lacks element metadata' };
-
     await startSession(data.guideId, steps.length, firstStep, await resolveManual(firstStep));
-
     const activeTab = await getActiveTab();
-    if (activeTab?.id && firstStep.url) {
-      await updateTab(activeTab.id, { url: firstStep.url });
-    }
-
+    if (activeTab?.id && firstStep.url) await updateTab(activeTab.id, { url: firstStep.url });
     return { started: true };
   });
 
@@ -224,27 +197,22 @@ export default defineBackground(() => {
     const sessionData = await localStorage.get(['guideMeSession']);
     const session = sessionData.guideMeSession as { guideId: string } | undefined;
     if (!session) return { advanced: false };
-
     const steps = actionSteps(await getStepsForGuide(session.guideId));
     const nextIndex = data.stepIndex + 1;
-
     if (nextIndex >= steps.length) {
       await completeSession();
       return { advanced: true, completed: true };
     }
-
     const nextStep = steps[nextIndex];
     if (!nextStep) {
       await completeSession();
       return { advanced: true, completed: true };
     }
     await advanceSession(nextStep, nextIndex, await resolveManual(nextStep));
-
     const currentTab = await getActiveTab();
     if (currentTab?.id && nextStep.url && nextStep.url !== currentTab.url) {
       await updateTab(currentTab.id, { url: nextStep.url });
     }
-
     return { advanced: true };
   });
 
@@ -257,17 +225,14 @@ export default defineBackground(() => {
     const sessionData = await localStorage.get(['guideMeSession']);
     const session = sessionData.guideMeSession as { guideId: string } | undefined;
     if (!session) return { moved: false };
-
     const steps = actionSteps(await getStepsForGuide(session.guideId));
     const target = steps[data.stepIndex];
     if (!target) return { moved: false };
     await advanceSession(target, data.stepIndex, await resolveManual(target));
-
     const currentTab = await getActiveTab();
     if (currentTab?.id && target.url && target.url !== currentTab.url) {
       await updateTab(currentTab.id, { url: target.url });
     }
-
     return { moved: true };
   });
 });

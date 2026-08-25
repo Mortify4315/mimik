@@ -1,12 +1,18 @@
 import { generateObject, generateText, jsonSchema } from 'ai';
 import { localStorage } from '@/lib/browser-api';
 import { logger } from '@/lib/logger';
+import type { AIAPIFormat } from './models';
 import { GUIDE_META_JSON_SUFFIX, GUIDE_META_PROMPT, getLanguageSuffix } from './prompts';
 import { createModel } from './provider';
 
 export interface GuideMeta {
   title: string;
   description?: string;
+}
+
+export interface AIConnectionSettings {
+  baseURL?: string;
+  apiFormat?: AIAPIFormat;
 }
 
 const MAX_TITLE_LENGTH = 70;
@@ -58,6 +64,7 @@ export async function generateGuideMeta(
   provider: string,
   model: string,
   apiKey: string,
+  connection: AIConnectionSettings = {},
 ): Promise<GuideMeta | null> {
   if (steps.length === 0) return null;
 
@@ -65,7 +72,7 @@ export async function generateGuideMeta(
   const settings = await localStorage.get(['aiLanguage']);
   const locale = (settings.aiLanguage as string) || 'en';
   const prompt = GUIDE_META_PROMPT.replace('{{steps}}', formatted) + getLanguageSuffix(locale);
-  const aiModel = createModel(provider, model, apiKey);
+  const aiModel = createModel(provider, model, apiKey, connection);
 
   try {
     const { object } = await generateObject({
